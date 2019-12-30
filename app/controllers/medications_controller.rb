@@ -1,10 +1,21 @@
 class MedicationsController < ApplicationController
   before_action :set_medication, only: [:show, :edit, :update, :destroy]
+  authorize_resource
+  include UserActivitiesHelper
+  include MessagesHelper
+
+  rescue_from CanCan::AccessDenied do |exception|
+    redirect_from_cancan_access_denied(user_holder_medications_path(current_user.user_holder), exception.message)
+  end
+
+
+
 
   # GET /medications
   # GET /medications.json
   def index
     @medications = @user_holder.medications
+    general_controller_index
   end
 
   # GET /medications/1
@@ -24,51 +35,31 @@ class MedicationsController < ApplicationController
   # POST /medications
   # POST /medications.json
   def create
-      @medication = @user_holder.medications.build(medication_params)
-
-    respond_to do |format|
-      if @medication.save
-        format.html { redirect_to user_holder_medications_path(@user_holder), notice: 'Medication was successfully created.' }
-        format.json { render :show, status: :created, location: @medication }
-      else
-        format.html { render :new }
-        format.json { render json: @medication.errors, status: :unprocessable_entity }
-      end
-    end
+    @medication = @user_holder.medications.build(medication_params)
+    general_controller_create_with_log_notification(@medication, "medication", user_holder_medications_path(@user_holder))
   end
 
   # PATCH/PUT /medications/1
   # PATCH/PUT /medications/1.json
   def update
-    respond_to do |format|
-      if @medication.update(medication_params)
-        format.html { redirect_to user_holder_medications_path(@user_holder), notice: 'Medication was successfully updated.' }
-        format.json { render :show, status: :ok, location: @medication }
-      else
-        format.html { render :edit }
-        format.json { render json: @medication.errors, status: :unprocessable_entity }
-      end
-    end
+    general_controller_update_with_log_notification(@medication, medication_params, "medication", user_holder_medications_path(@user_holder))
   end
 
   # DELETE /medications/1
   # DELETE /medications/1.json
   def destroy
-    @medication.destroy
-    respond_to do |format|
-      format.html { redirect_to user_holder_medications_path(@user_holder), notice: 'Medication was successfully destroyed.' }
-      format.json { head :no_content }
-    end
+    general_controller_delete_with_log(current_user.user_holder, @user_holder, @medication, user_holder_medications_path(@user_holder))
   end
 
   private
     # Use callbacks to share common setup or constraints between actions.
     def set_medication
-      @medication = @user_holder.medications.find(params[:id])
+      # @medication = @user_holder.medications.find(params[:id])
+      @medication = Medication.find(params[:id])
     end
 
     # Never trust parameters from the scary internet, only allow the white list through.
     def medication_params
-      params.require(:medication).permit(:provider, :directions, :days, :description, :user_holder_id)
+      params.require(:medication).permit(:provider, :directions, :days, :description, :user_holder_id, :name)
     end
 end
